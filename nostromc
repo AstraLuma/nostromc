@@ -1,6 +1,6 @@
 #!/usr/bin/python -O
 from __future__ import division
-import re, os.path, sys
+import re, os.path, sys, atexit
 from pyinput import uinput
 import lwjgl_keys, nostromo as nos
 
@@ -25,15 +25,21 @@ class McConfig(object):
 			k, v = l.split(':', 1)
 			self.ops[k] = v
 	
-	def ui(self, setting):
+	def ui(self, *settings):
 		"""
 		Gets the uinput key given the setting.
 		"""
-		s = self.ops[setting]
-		s = int(s)
-		if s <= 0: return None
-		kn = lwjgl_keys.Keys.getname(s)
-		return getattr(uinput, kn)
+		for setting in settings:
+			try:
+				s = self.ops[setting]
+			except KeyError:
+				continue
+			s = int(s)
+			if s <= 0: return None
+			kn = lwjgl_keys.Keys.getname(s)
+			return getattr(uinput, kn)
+		else:
+			return 0
 
 mcc = McConfig(os.path.expanduser(MC_CONFIG))
 
@@ -51,6 +57,8 @@ Release Charge (R): (EE)
 Toggle Active (G): (EE)
 Extra Function (C): (EE)
 
+Better dungeons item use (YogBox)
+
 Note that no item will use both these sets at once, so here's the suggested mirroring:
  * Mode Switch == Toggle Active
  * Boost == Release Charge
@@ -61,7 +69,7 @@ BTN_MAPPING = {
 	uinput.BTN_C  : mcc.ui('key_Release Charge'),	#3
 	uinput.BTN_X  : mcc.ui('key_key.inventory'),	#4
 	uinput.BTN_Y  : mcc.ui('key_key.drop'),	#5
-	uinput.BTN_Z  : mcc.ui('key_Toggle Active'),	#6
+	uinput.BTN_Z  : mcc.ui('key_Toggle Active', 'key_Better dungeons item use'),	#6
 	uinput.BTN_TL : mcc.ui('key_Sort inventory'),	#7
 	uinput.BTN_TR : mcc.ui('key_Zoom'),	#8
 	uinput.BTN_TL2: mcc.ui('key_key.jump'),	#9
@@ -75,6 +83,21 @@ RIGHT = mcc.ui('key_key.right')
 
 # These are non-configurable
 HOTKEYS = [uinput.KEY_1, uinput.KEY_2, uinput.KEY_3, uinput.KEY_4, uinput.KEY_5, uinput.KEY_6, uinput.KEY_7, uinput.KEY_8, uinput.KEY_9]
+
+def show_difficulty():
+	DESC = ['Peaceful', 'Easy', 'Normal', 'Hard']
+	dif = int(mcc.ops.get('difficulty', '0'))
+	print "Difficulty:", DESC[dif]
+	with uinput.EvdevStream(DEVICE, 'w') as indev:
+		if dif == 0: 
+			nos.led_pick(indev, None)
+		else:
+			nos.led_pick(indev, 3-dif)
+
+@atexit.register
+def clear_leds():
+	with uinput.EvdevStream(DEVICE, 'w') as indev:
+		nos.led_pick(indev, None)
 
 def sendkey(value, low, high, outdev):
 	# 0 - 255
@@ -109,6 +132,7 @@ with uinput.UinputStream() as outdev:
 		outdev.ioctl(uinput.UI_SET_KEYBIT, key)
 	
 	with outdev.create():
+		show_difficulty()
 		with uinput.EvdevStream(DEVICE) as indev:
 			for event in indev.iter(uinput.input_event):
 				if event.type == uinput.EV_KEY:
