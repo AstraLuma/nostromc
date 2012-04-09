@@ -1,3 +1,9 @@
+"""
+The key values used by LWJGL and Minecraft's config files.
+
+Note that these use the Linux input constant names.
+"""
+
 class Keys:
 	# The special keycode meaning that only the
 	# translated character is valid.
