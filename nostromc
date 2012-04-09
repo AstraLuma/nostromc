@@ -1,0 +1,166 @@
+#!/usr/bin/python -O
+from __future__ import division
+import re, os.path, sys
+from pyinput import uinput
+import lwjgl_keys
+
+DEVICE = "/dev/input/by-id/usb-050d_0805-event-joystick"
+MC_CONFIG = "~/.techniclauncher/%s/options.txt" % (sys.argv[1] if len(sys.argv) >= 2 else "tekkit")
+
+
+# Escape sudo
+if 'SUDO_UID' in os.environ:
+	_,euid,_ = os.getresuid()
+	ruid = int(os.environ['SUDO_UID'])
+	os.setreuid(ruid, euid)
+	del os.environ['HOME']
+	os.environ['USER'] = os.environ['USERNAME'] = os.environ['SUDO_USER']
+
+class McConfig(object):
+	def __init__(self, fn):
+		self.ops = {}
+		for l in open(fn):
+			l = l.rstrip()
+			if not l: continue
+			k, v = l.split(':', 1)
+			self.ops[k] = v
+	
+	def ui(self, setting):
+		"""
+		Gets the uinput key given the setting.
+		"""
+		s = self.ops[setting]
+		s = int(s)
+		if s <= 0: return None
+		kn = lwjgl_keys.Keys.getname(s)
+		return getattr(uinput, kn)
+
+mcc = McConfig(os.path.expanduser(MC_CONFIG))
+
+"""
+Mode Switch: (IC2) Switches modes for:
+ * Electric Wrench (normal, lossless)
+ * Mining Laser (single, AoE)
+ * Painter
+ * Jetpack (normal, hover)
+Boost: (IC2) Activates QuantumSuit
+ALT: (IC2) ??? (used by the wrench)
+
+Charge Item: EE: 
+Release Charge: EE: 
+Toggle Active: EE: 
+Extra Function: EE: 
+
+"""
+BTN_MAPPING = {
+	uinput.BTN_A  : mcc.ui('key_Extra Function'),	#1
+	uinput.BTN_B  : mcc.ui('key_Charge Item'),	#2
+	uinput.BTN_C  : mcc.ui('key_Release Charge'),	#3
+	uinput.BTN_X  : mcc.ui('key_key.inventory'),	#4
+	uinput.BTN_Y  : mcc.ui('key_key.drop'),	#5
+	uinput.BTN_Z  : mcc.ui('key_Toggle Active'),	#6
+	uinput.BTN_TL : mcc.ui('key_Sort inventory'),	#7
+	uinput.BTN_TR : mcc.ui('key_Zoom'),	#8
+	uinput.BTN_TL2: mcc.ui('key_key.jump'),	#9
+	uinput.BTN_TR2: mcc.ui('key_key.sneak'),	#10
+}
+
+SET_RED, SET_GREEN, SET_BLUE = range(3)
+
+BTN_SETS = [
+	# RED #
+	{},
+	# GREEN #
+	{},
+	# BLUE #
+	{},
+	]
+
+UP    = mcc.ui('key_key.forward')
+LEFT  = mcc.ui('key_key.left')
+DOWN  = mcc.ui('key_key.back')
+RIGHT = mcc.ui('key_key.right')
+
+"""
+Nostromo also has 3 LEDs the OS isn't taking control of:
+ 1. LED_NUML: Red
+ 2. LED_CAPSL: Green
+ 3. LED_SCROLLL: Blue
+
+Should probably use these to toggle between keysets (EE, IC2, Vanilla)
+"""
+
+NOS_LEDS = [uinput.LED_NUML, uinput.LED_CAPSL, uinput.LED_SCROLLL]
+
+# These are non-configurable
+HOTKEYS = [uinput.KEY_1, uinput.KEY_2, uinput.KEY_3, uinput.KEY_4, uinput.KEY_5, uinput.KEY_6, uinput.KEY_7, uinput.KEY_8, uinput.KEY_9]
+
+def sendkey(value, low, high, outdev):
+	# 0 - 255
+	if value < 64:
+		outdev.event(uinput.EV_KEY, low, 1)
+	elif value > 192:
+		outdev.event(uinput.EV_KEY, high, 1)
+	else:
+		outdev.event(uinput.EV_KEY, low, 0)
+		outdev.event(uinput.EV_KEY, high, 0)
+
+#NOTE: For LEDs to work, device must be opened as write-only.
+def led_pick(nos, led):
+	s = [0,0,0]
+	if led is not None:
+		s[led] = 1
+	ie = uinput.input_event()
+	ie.type = uinput.EV_LED
+	for i,v in enumerate(s):
+		ie.code = NOS_LEDS[i]
+		ie.value = v
+		nos.write(ie)
+
+def mkstruct(cls, **kwargs):
+	rv = cls()
+	for a,v in kwargs.items():
+		setattr(rv, a, v)
+	return rv
+
+with uinput.UinputStream() as outdev:
+	outdev.write(mkstruct(uinput.uinput_user_dev,
+		name="Nostromo for Minecraft",
+		id=mkstruct(uinput.input_id, bustype=0, vendor=0x0A73, product=0x0000, version=0x0001),
+		))
+	outdev.ioctl(uinput.UI_SET_EVBIT, uinput.EV_KEY)
+	for key in BTN_MAPPING.values():
+		if key is None: continue
+		outdev.ioctl(uinput.UI_SET_KEYBIT, key)
+	for kset in BTN_SETS:
+		for key in kset.values():
+			if key is None: continue
+			outdev.ioctl(uinput.UI_SET_KEYBIT, key)
+	for key in HOTKEYS:
+		outdev.ioctl(uinput.UI_SET_KEYBIT, key)
+	for key in UP, LEFT, DOWN, RIGHT:
+		outdev.ioctl(uinput.UI_SET_KEYBIT, key)
+	
+	with outdev.create():
+		with uinput.EvdevStream(DEVICE) as indev:
+			for event in indev.iter(uinput.input_event):
+				if event.type == uinput.EV_KEY:
+					if event.code in BTN_MAPPING and BTN_MAPPING[event.code]:
+						key = BTN_MAPPING[event.code]
+						outdev.event(uinput.EV_KEY, key, event.value)
+						outdev.event(uinput.EV_SYN, uinput.SYN_REPORT, 0)
+				elif event.type == uinput.EV_ABS:
+					if event.code == uinput.ABS_X:
+						sendkey(event.value, LEFT, RIGHT, outdev)
+					elif event.code == uinput.ABS_Y:
+						sendkey(event.value, UP, DOWN, outdev)
+					elif event.code == uinput.ABS_THROTTLE:
+						hk = int(round(  
+							event.value / 255 * (len(HOTKEYS)-1)  
+							))
+						print "Hotkey", hk
+						outdev.event(uinput.EV_KEY, HOTKEYS[hk], 1)
+						outdev.event(uinput.EV_SYN, uinput.SYN_REPORT, 0)
+						outdev.event(uinput.EV_KEY, HOTKEYS[hk], 0)
+					outdev.event(uinput.EV_SYN, uinput.SYN_REPORT, 0)
+
