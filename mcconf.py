@@ -65,8 +65,19 @@ class McConfig(object):
 		else:
 			return 0
 
+def inr_filter(fn):
+	return os.path.basename(fn) == "options.txt"
+
 def inr_config():
 	"""inr_config() -> dict
 	Tells inrestart what to monitor.
 	"""
-	return {}
+	_ = os.path.expanduser
+	return {
+		'filter': inr_filter,
+		'watches': [
+			_("~/.minecraft/options.txt"),
+			_("~/.techniclauncher"),
+			_("~/.spoutcraft"),
+			],
+		}

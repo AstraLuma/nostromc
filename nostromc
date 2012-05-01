@@ -5,27 +5,28 @@ from pyinput import uinput
 import nostromo as nos
 import mcconf
 
-DEVICE = "/dev/input/by-id/usb-050d_0805-event-joystick"
-
-if len(sys.argv) >= 2:
-	if os.path.isfile(sys.argv[1]):
-		MC_CONFIG = config
-	else:
-		MC_CONFIG = "~/.techniclauncher/%s/options.txt" % sys.argv[1]
-else:
-	MC_CONFIG = mcconf.find_latest()
-	import inrestart
-	inrestart.config(**mcconf.inr_config())
-
-print "Using %s" % MC_CONFIG
-
-# Escape sudo
+# Escape sudo (Do this first, so home dir finding works)
 if 'SUDO_UID' in os.environ:
 	_,euid,_ = os.getresuid()
 	ruid = int(os.environ['SUDO_UID'])
 	os.setreuid(ruid, euid)
-	del os.environ['HOME']
+	os.environ.pop('HOME', None)
 	os.environ['USER'] = os.environ['USERNAME'] = os.environ['SUDO_USER']
+
+DEVICE = "/dev/input/by-id/usb-050d_0805-event-joystick"
+
+if len(sys.argv) >= 2:
+	if os.path.isfile(sys.argv[1]):
+		MC_CONFIG = sys.argv[1]
+	else:
+		MC_CONFIG = "~/.techniclauncher/%s/options.txt" % sys.argv[1]
+	manager = None
+else:
+	MC_CONFIG = mcconf.find_latest()
+	import inrestart
+	manager = inrestart.config(**mcconf.inr_config())
+
+print "Using %s" % MC_CONFIG
 
 mcc = mcconf.McConfig(os.path.expanduser(MC_CONFIG))
 
@@ -118,7 +119,7 @@ with uinput.UinputStream() as outdev:
 		outdev.ioctl(uinput.UI_SET_KEYBIT, key)
 	for key in UP, LEFT, DOWN, RIGHT:
 		outdev.ioctl(uinput.UI_SET_KEYBIT, key)
-	
+
 	with outdev.create():
 		show_difficulty()
 		with uinput.EvdevStream(DEVICE) as indev:
