@@ -2,11 +2,22 @@
 from __future__ import division
 import re, os.path, sys, atexit
 from pyinput import uinput
-import lwjgl_keys, nostromo as nos
+import nostromo as nos
+import mcconf
 
 DEVICE = "/dev/input/by-id/usb-050d_0805-event-joystick"
-MC_CONFIG = "~/.techniclauncher/%s/options.txt" % (sys.argv[1] if len(sys.argv) >= 2 else "tekkit")
 
+if len(sys.argv) >= 2:
+	if os.path.isfile(sys.argv[1]):
+		MC_CONFIG = config
+	else:
+		MC_CONFIG = "~/.techniclauncher/%s/options.txt" % sys.argv[1]
+else:
+	MC_CONFIG = mcconf.find_latest()
+	import inrestart
+	inrestart.config(**mcconf.inr_config())
+
+print "Using %s" % MC_CONFIG
 
 # Escape sudo
 if 'SUDO_UID' in os.environ:
@@ -16,32 +27,7 @@ if 'SUDO_UID' in os.environ:
 	del os.environ['HOME']
 	os.environ['USER'] = os.environ['USERNAME'] = os.environ['SUDO_USER']
 
-class McConfig(object):
-	def __init__(self, fn):
-		self.ops = {}
-		for l in open(fn):
-			l = l.rstrip()
-			if not l: continue
-			k, v = l.split(':', 1)
-			self.ops[k] = v
-	
-	def ui(self, *settings):
-		"""
-		Gets the uinput key given the setting.
-		"""
-		for setting in settings:
-			try:
-				s = self.ops[setting]
-			except KeyError:
-				continue
-			s = int(s)
-			if s <= 0: return None
-			kn = lwjgl_keys.Keys.getname(s)
-			return getattr(uinput, kn)
-		else:
-			return 0
-
-mcc = McConfig(os.path.expanduser(MC_CONFIG))
+mcc = mcconf.McConfig(os.path.expanduser(MC_CONFIG))
 
 """
 Mode Switch: (IC2) Switches modes for:
@@ -82,7 +68,9 @@ DOWN  = mcc.ui('key_key.back')
 RIGHT = mcc.ui('key_key.right')
 
 # These are non-configurable
-HOTKEYS = [uinput.KEY_1, uinput.KEY_2, uinput.KEY_3, uinput.KEY_4, uinput.KEY_5, uinput.KEY_6, uinput.KEY_7, uinput.KEY_8, uinput.KEY_9]
+HOTKEYS = [
+	uinput.KEY_1, uinput.KEY_2, uinput.KEY_3, uinput.KEY_4, #uinput.KEY_5, uinput.KEY_6, uinput.KEY_7, uinput.KEY_8, uinput.KEY_9
+	]
 
 def show_difficulty():
 	DESC = ['Peaceful', 'Easy', 'Normal', 'Hard']
