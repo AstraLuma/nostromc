@@ -76,7 +76,7 @@ def inr_config():
 	return {
 		'filter': inr_filter,
 		'watches': [
-			_("~/.minecraft/options.txt"),
+			_("~/.minecraft"),
 			_("~/.techniclauncher"),
 			_("~/.spoutcraft"),
 			],
