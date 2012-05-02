@@ -138,7 +138,6 @@ with uinput.UinputStream() as outdev:
 						hk = int(round(  
 							event.value / 255 * (len(HOTKEYS)-1)  
 							))
-						print "Hotkey", hk
 						outdev.event(uinput.EV_KEY, HOTKEYS[hk], 1)
 						outdev.event(uinput.EV_SYN, uinput.SYN_REPORT, 0)
 						outdev.event(uinput.EV_KEY, HOTKEYS[hk], 0)
