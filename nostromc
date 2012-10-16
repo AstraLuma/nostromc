@@ -57,7 +57,7 @@ BTN_MAPPING = {
 	uinput.BTN_X  : mcc.ui('key_key.inventory'),	#4
 	uinput.BTN_Y  : mcc.ui('key_key.drop'),	#5
 	uinput.BTN_Z  : mcc.ui('key_Toggle Active', 'key_Better dungeons item use'),	#6
-	uinput.BTN_TL : mcc.ui('key_Sort inventory'),	#7
+	uinput.BTN_TL : mcc.ui('key_Boost Key'),	#7
 	uinput.BTN_TR : mcc.ui('key_Zoom'),	#8
 	uinput.BTN_TL2: mcc.ui('key_key.jump'),	#9
 	uinput.BTN_TR2: mcc.ui('key_key.sneak'),	#10

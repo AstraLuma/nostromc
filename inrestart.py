@@ -29,6 +29,7 @@ class config(pyinotify.ProcessEvent):
 	
 	def restart(self):
 		print "Reloading..."
+		os.closerange(3,20)
 		os.execv(sys.argv[0], sys.argv)
 	
 	def process_IN_CLOSE_WRITE(self, event):
