@@ -13,13 +13,17 @@ class config(pyinotify.ProcessEvent):
 	def __init__(self, **ops):
 		global _INRESTART
 		self.ops = ops
-		self.wm = pyinotify.WatchManager()
-		self.notifier = pyinotify.ThreadedNotifier(self.wm, self)
-		self.notifier.setDaemon(True)
-		self.notifier.start()
-		for path in ops['watches']:
-			if not os.path.exists(path): continue
-			self.wm.add_watch(path, self.MASK, rec=True)
+		try:
+			self.wm = pyinotify.WatchManager()
+		except:
+			pass
+		else:
+			self.notifier = pyinotify.ThreadedNotifier(self.wm, self)
+			self.notifier.setDaemon(True)
+			self.notifier.start()
+			for path in ops['watches']:
+				if not os.path.exists(path): continue
+				self.wm.add_watch(path, self.MASK, rec=True)
 	
 	def filter(self, fn):
 		if 'filter' in self.ops:

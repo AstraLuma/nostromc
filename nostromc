@@ -134,12 +134,12 @@ with uinput.UinputStream() as outdev:
 						sendkey(event.value, LEFT, RIGHT, outdev)
 					elif event.code == uinput.ABS_Y:
 						sendkey(event.value, UP, DOWN, outdev)
-					elif event.code == uinput.ABS_THROTTLE:
-						hk = int(round(  
-							event.value / 255 * (len(HOTKEYS)-1)  
-							))
-						outdev.event(uinput.EV_KEY, HOTKEYS[hk], 1)
-						outdev.event(uinput.EV_SYN, uinput.SYN_REPORT, 0)
-						outdev.event(uinput.EV_KEY, HOTKEYS[hk], 0)
+#					elif event.code == uinput.ABS_THROTTLE:
+#						hk = int(round(  
+#							event.value / 255 * (len(HOTKEYS)-1)  
+#							))
+#						outdev.event(uinput.EV_KEY, HOTKEYS[hk], 1)
+#						outdev.event(uinput.EV_SYN, uinput.SYN_REPORT, 0)
+#						outdev.event(uinput.EV_KEY, HOTKEYS[hk], 0)
 					outdev.event(uinput.EV_SYN, uinput.SYN_REPORT, 0)
 
